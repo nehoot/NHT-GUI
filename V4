@@ -1,0 +1,506 @@
+-- NEHOOTS GUI
+-- LocalScript in StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local spinConn, rainbowConn, noclipConn, flyConn, fly2Conn = nil,nil,nil,nil,nil
+local isFlying, isFlying2, isNoclip = false, false, false
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    hrp = char:WaitForChild("HumanoidRootPart")
+    if spinConn then spinConn:Disconnect() spinConn = nil end
+    if rainbowConn then rainbowConn:Disconnect() rainbowConn = nil end
+    if flyConn then flyConn:Disconnect() flyConn = nil end
+    if fly2Conn then fly2Conn:Disconnect() fly2Conn = nil end
+    if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+    isFlying = false; isFlying2 = false; isNoclip = false
+end)
+
+-- ========== GUI ==========
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NehootsGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player.PlayerGui
+
+-- NHT open button
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 52, 0, 52)
+openBtn.Position = UDim2.new(0, 10, 0.5, -26)
+openBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+openBtn.TextColor3 = Color3.new(1,1,1)
+openBtn.Text = "NHT"
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 13
+openBtn.Parent = screenGui
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
+local ob_s = Instance.new("UIStroke", openBtn)
+ob_s.Color = Color3.fromRGB(255,200,0); ob_s.Thickness = 2
+
+local dragging, dragStartPos, btnStartPos = false, nil, nil
+openBtn.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging=true; dragStartPos=i.Position; btnStartPos=openBtn.Position
+    end
+end)
+openBtn.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging=false
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+        local d=i.Position-dragStartPos
+        openBtn.Position=UDim2.new(btnStartPos.X.Scale,btnStartPos.X.Offset+d.X,btnStartPos.Y.Scale,btnStartPos.Y.Offset+d.Y)
+    end
+end)
+
+-- ========== MAIN FRAME ==========
+local TITLE_H  = 42
+local ACC_H    = 34
+local GAP      = 5
+local BPAD     = 8
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, TITLE_H + GAP + ACC_H + GAP + ACC_H + BPAD)
+frame.AnchorPoint = Vector2.new(0.5, 0)
+frame.Position = UDim2.new(0.5, 0, 0.05, 0)
+frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+frame.Active = true
+frame.Draggable = true
+frame.Visible = false
+frame.ClipsDescendants = true
+frame.Parent = screenGui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+local frame_stroke = Instance.new("UIStroke", frame)
+frame_stroke.Color = Color3.fromRGB(255,200,0); frame_stroke.Thickness = 2
+
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,TITLE_H)
+titleBar.BackgroundColor3 = Color3.fromRGB(15,15,15)
+titleBar.Parent = frame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0,14)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1,-100,1,0)
+titleLabel.Position = UDim2.new(0,10,0,0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255,200,0)
+titleLabel.Text = "🎮 NEHOOTS GUI"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 14
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local contactBtn = Instance.new("TextButton")
+contactBtn.Size = UDim2.new(0,30,0,30); contactBtn.Position = UDim2.new(1,-68,0,6)
+contactBtn.BackgroundColor3 = Color3.fromRGB(0,136,204); contactBtn.TextColor3 = Color3.new(1,1,1)
+contactBtn.Text = "✉"; contactBtn.Font = Enum.Font.GothamBold; contactBtn.TextSize = 14
+contactBtn.Parent = titleBar
+Instance.new("UICorner", contactBtn).CornerRadius = UDim.new(1,0)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0,30,0,30); closeBtn.Position = UDim2.new(1,-34,0,6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200,40,40); closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Text = "✕"; closeBtn.Font = Enum.Font.GothamBold; closeBtn.TextSize = 13
+closeBtn.Parent = titleBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1,0)
+
+-- ========== CONTACT POPUP ==========
+local contactPopup = Instance.new("Frame")
+contactPopup.Size = UDim2.new(0,240,0,130); contactPopup.Position = UDim2.new(0.5,-120,0.5,-65)
+contactPopup.BackgroundColor3 = Color3.fromRGB(12,12,18); contactPopup.Active = true
+contactPopup.Draggable = true; contactPopup.Visible = false; contactPopup.ZIndex = 10
+contactPopup.Parent = screenGui
+Instance.new("UICorner", contactPopup).CornerRadius = UDim.new(0,14)
+local cp_s = Instance.new("UIStroke", contactPopup); cp_s.Color = Color3.fromRGB(0,136,204); cp_s.Thickness = 2
+
+local function mkLabel(props)
+    local l = Instance.new("TextLabel")
+    for k,v in pairs(props) do l[k]=v end
+    l.BackgroundTransparency=1; l.ZIndex=10; l.Parent=contactPopup; return l
+end
+mkLabel({Size=UDim2.new(1,0,0,32),TextColor3=Color3.fromRGB(0,136,204),Text="✉  Contact",Font=Enum.Font.GothamBold,TextSize=14})
+local cpDiv=Instance.new("Frame"); cpDiv.Size=UDim2.new(0.9,0,0,1); cpDiv.Position=UDim2.new(0.05,0,0,32)
+cpDiv.BackgroundColor3=Color3.fromRGB(0,136,204); cpDiv.BorderSizePixel=0; cpDiv.ZIndex=10; cpDiv.Parent=contactPopup
+mkLabel({Size=UDim2.new(1,-20,0,24),Position=UDim2.new(0,10,0,38),TextColor3=Color3.fromRGB(160,160,160),Text="Telegram",Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left})
+mkLabel({Size=UDim2.new(1,-20,0,26),Position=UDim2.new(0,10,0,58),TextColor3=Color3.new(1,1,1),Text="@void3x",Font=Enum.Font.GothamBold,TextSize=17,TextXAlignment=Enum.TextXAlignment.Left})
+local cpClose=Instance.new("TextButton"); cpClose.Size=UDim2.new(0.88,0,0,28); cpClose.Position=UDim2.new(0.06,0,0,92)
+cpClose.BackgroundColor3=Color3.fromRGB(200,40,40); cpClose.TextColor3=Color3.new(1,1,1)
+cpClose.Text="Close"; cpClose.Font=Enum.Font.GothamBold; cpClose.TextSize=12; cpClose.ZIndex=10; cpClose.Parent=contactPopup
+Instance.new("UICorner",cpClose).CornerRadius=UDim.new(0,8)
+contactBtn.MouseButton1Click:Connect(function() contactPopup.Visible=not contactPopup.Visible end)
+cpClose.MouseButton1Click:Connect(function() contactPopup.Visible=false end)
+
+-- ========== ACCORDION SYSTEM ==========
+local accordionStates = {}
+
+local function recalcFrameHeight()
+    local h = TITLE_H + GAP
+    for _, acc in ipairs(accordionStates) do
+        h = h + ACC_H + GAP
+        if acc.isOpen then
+            h = h + acc.openHeight + GAP
+        end
+    end
+    h = h + BPAD
+    TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        Size = UDim2.new(0, 300, 0, h)
+    }):Play()
+end
+
+local currentY = TITLE_H + GAP
+
+local function makeAccordion(labelText, accentColor, panelHeight, buildContents)
+    local yPos = currentY
+    local accState = {panel=nil, openHeight=panelHeight, isOpen=false}
+    table.insert(accordionStates, accState)
+
+    local accBtn = Instance.new("TextButton")
+    accBtn.Size = UDim2.new(1,-16,0,ACC_H)
+    accBtn.Position = UDim2.new(0,8,0,yPos)
+    accBtn.BackgroundColor3 = Color3.fromRGB(22,22,32)
+    accBtn.TextColor3 = accentColor
+    accBtn.Text = "  "..labelText.."  ▼"
+    accBtn.Font = Enum.Font.GothamBold
+    accBtn.TextSize = 13
+    accBtn.TextXAlignment = Enum.TextXAlignment.Left
+    accBtn.AutoButtonColor = false
+    accBtn.Parent = frame
+    Instance.new("UICorner", accBtn).CornerRadius = UDim.new(0,8)
+    local acc_s = Instance.new("UIStroke", accBtn)
+    acc_s.Color = accentColor; acc_s.Thickness = 1.5
+
+    local arrow = Instance.new("TextLabel")
+    arrow.Size = UDim2.new(0,28,1,0); arrow.Position = UDim2.new(1,-32,0,0)
+    arrow.BackgroundTransparency = 1; arrow.TextColor3 = accentColor
+    arrow.Text = "▼"; arrow.Font = Enum.Font.GothamBold; arrow.TextSize = 12
+    arrow.Parent = accBtn
+
+    local panel = Instance.new("Frame")
+    panel.Size = UDim2.new(1,-16,0,0)
+    panel.Position = UDim2.new(0,8,0,yPos+ACC_H+GAP)
+    panel.BackgroundColor3 = Color3.fromRGB(18,18,26)
+    panel.ClipsDescendants = true
+    panel.BorderSizePixel = 0
+    panel.Parent = frame
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
+    accState.panel = panel
+
+    buildContents(panel)
+
+    -- Next accordion goes below this one (closed height only)
+    currentY = yPos + ACC_H + GAP
+
+    accBtn.MouseButton1Click:Connect(function()
+        accState.isOpen = not accState.isOpen
+        local a = accState.isOpen and "▲" or "▼"
+        arrow.Text = a; accBtn.Text = "  "..labelText.."  "..a
+
+        -- Reposition all panels below this one
+        local runningY = TITLE_H + GAP
+        for _, acc in ipairs(accordionStates) do
+            acc.panel.Parent:FindFirstChild("TextButton") -- just iterate
+            runningY = runningY + ACC_H + GAP
+            if acc.isOpen then runningY = runningY + acc.openHeight + GAP end
+        end
+
+        TweenService:Create(panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(1,-16,0, accState.isOpen and panelHeight or 0)
+        }):Play()
+
+        -- Reposition lower accordions dynamically
+        local yRunner = TITLE_H + GAP
+        for _, acc in ipairs(accordionStates) do
+            -- find the button by position order — panels reposition themselves
+            yRunner = yRunner + ACC_H + GAP
+            if acc.isOpen then
+                TweenService:Create(acc.panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                    Position = UDim2.new(0,8,0, yRunner)
+                }):Play()
+                yRunner = yRunner + acc.openHeight + GAP
+            else
+                TweenService:Create(acc.panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                    Position = UDim2.new(0,8,0, yRunner)
+                }):Play()
+            end
+        end
+
+        recalcFrameHeight()
+    end)
+
+    return panel
+end
+
+-- ========== SLIDERS ==========
+local sliderValues = {}
+
+local function makeSlider(parent, labelText, minVal, maxVal, defaultVal, index)
+    local yOff = (index-1)*36+6
+    local c = Instance.new("Frame")
+    c.Size=UDim2.new(1,-16,0,30); c.Position=UDim2.new(0,8,0,yOff)
+    c.BackgroundTransparency=1; c.Parent=parent
+
+    local lbl=Instance.new("TextLabel"); lbl.Size=UDim2.new(0.58,0,0,14)
+    lbl.BackgroundTransparency=1; lbl.TextColor3=Color3.fromRGB(180,180,180)
+    lbl.Text=labelText; lbl.Font=Enum.Font.Gotham; lbl.TextSize=11
+    lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.Parent=c
+
+    local vl=Instance.new("TextLabel"); vl.Size=UDim2.new(0.4,0,0,14); vl.Position=UDim2.new(0.6,0,0,0)
+    vl.BackgroundTransparency=1; vl.TextColor3=Color3.fromRGB(255,200,0)
+    vl.Text=tostring(defaultVal); vl.Font=Enum.Font.GothamBold; vl.TextSize=11
+    vl.TextXAlignment=Enum.TextXAlignment.Right; vl.Parent=c
+
+    local track=Instance.new("Frame"); track.Size=UDim2.new(1,0,0,10); track.Position=UDim2.new(0,0,0,18)
+    track.BackgroundColor3=Color3.fromRGB(35,35,50); track.BorderSizePixel=0; track.Parent=c
+    Instance.new("UICorner",track).CornerRadius=UDim.new(1,0)
+
+    local fill=Instance.new("Frame"); fill.Size=UDim2.new((defaultVal-minVal)/(maxVal-minVal),0,1,0)
+    fill.BackgroundColor3=Color3.fromRGB(255,200,0); fill.BorderSizePixel=0; fill.Parent=track
+    Instance.new("UICorner",fill).CornerRadius=UDim.new(1,0)
+
+    local knob=Instance.new("Frame"); knob.Size=UDim2.new(0,18,0,18); knob.AnchorPoint=Vector2.new(0.5,0.5)
+    knob.Position=UDim2.new((defaultVal-minVal)/(maxVal-minVal),0,0.5,0)
+    knob.BackgroundColor3=Color3.new(1,1,1); knob.BorderSizePixel=0; knob.Parent=track
+    Instance.new("UICorner",knob).CornerRadius=UDim.new(1,0)
+
+    sliderValues[labelText]=defaultVal
+    local sliding=false
+    local function upd(x)
+        local rel=math.clamp((x-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1)
+        local v=math.floor(minVal+rel*(maxVal-minVal))
+        sliderValues[labelText]=v; vl.Text=tostring(v)
+        fill.Size=UDim2.new(rel,0,1,0); knob.Position=UDim2.new(rel,0,0.5,0)
+    end
+    track.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            sliding=true; upd(i.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if sliding and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+            upd(i.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            sliding=false
+        end
+    end)
+end
+
+-- ========== SETTINGS ACCORDION ==========
+makeAccordion("⚙️  Settings", Color3.fromRGB(255,200,0), 216, function(panel)
+    makeSlider(panel,"⚡ SPEED",       16,200,50, 1)
+    makeSlider(panel,"🦘 JUMP POWER",  50,300,100,2)
+    makeSlider(panel,"💚 HEALTH",      1, 500,100,3)
+    makeSlider(panel,"🌀 SPIN (secs)", 1, 30, 5,  4)
+    makeSlider(panel,"✈️ FLY SPEED",   10,200,50, 5)
+    makeSlider(panel,"🔭 FOV",         60,120,120,6)
+end)
+
+-- ========== COMMANDS ==========
+local commands = {
+    {"⚡ Speed",   Color3.fromRGB(0,120,200),   function() humanoid.WalkSpeed=sliderValues["⚡ SPEED"] or 50 end},
+    {"🦘 Jump",    Color3.fromRGB(100,0,200),   function() humanoid.JumpPower=sliderValues["🦘 JUMP POWER"] or 100 end},
+    {"🔄 Reset",   Color3.fromRGB(80,80,80),    function()
+        humanoid.WalkSpeed=16; humanoid.JumpPower=50
+        humanoid.MaxHealth=100; humanoid.Health=100
+        workspace.CurrentCamera.FieldOfView=70
+    end},
+    {"✈️ Fly",     Color3.fromRGB(0,180,255),   function()
+        isFlying=not isFlying
+        if isFlying then
+            local bv=Instance.new("BodyVelocity"); bv.Name="FlyVelocity"; bv.Velocity=Vector3.zero
+            bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Parent=hrp
+            local bg=Instance.new("BodyGyro"); bg.Name="FlyGyro"
+            bg.MaxTorque=Vector3.new(1e5,1e5,1e5); bg.D=100; bg.Parent=hrp
+            humanoid.PlatformStand=true
+            flyConn=RunService.Heartbeat:Connect(function()
+                if not isFlying then flyConn:Disconnect() return end
+                local cam=workspace.CurrentCamera; local speed=sliderValues["✈️ FLY SPEED"] or 50
+                local d=Vector3.zero
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then d+=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then d-=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then d-=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then d+=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then d+=Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then d-=Vector3.new(0,1,0) end
+                bv.Velocity=d.Magnitude>0 and d.Unit*speed or Vector3.zero; bg.CFrame=cam.CFrame
+            end)
+        else
+            humanoid.PlatformStand=false
+            local bv=hrp:FindFirstChild("FlyVelocity") if bv then bv:Destroy() end
+            local bg=hrp:FindFirstChild("FlyGyro") if bg then bg:Destroy() end
+            if flyConn then flyConn:Disconnect() flyConn=nil end
+        end
+    end},
+    {"🛸 Fly 2",   Color3.fromRGB(0,220,180),   function()
+        isFlying2=not isFlying2
+        if isFlying2 then
+            humanoid.PlatformStand=false
+            local att=Instance.new("Attachment"); att.Name="Fly2Att"; att.Parent=hrp
+            local vf=Instance.new("VectorForce"); vf.Name="Fly2Force"; vf.Attachment0=att
+            vf.Force=Vector3.new(0,workspace.Gravity*hrp.AssemblyMass,0)
+            vf.RelativeTo=Enum.ActuatorRelativeTo.World; vf.Parent=hrp
+            fly2Conn=RunService.Heartbeat:Connect(function()
+                if not isFlying2 then fly2Conn:Disconnect() return end
+                local cam=workspace.CurrentCamera; local speed=sliderValues["✈️ FLY SPEED"] or 50
+                local d=Vector3.zero
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then d+=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then d-=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then d-=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then d+=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then d+=Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then d-=Vector3.new(0,1,0) end
+                hrp.AssemblyLinearVelocity=d.Magnitude>0 and d.Unit*speed or Vector3.zero
+                vf.Force=Vector3.new(0,workspace.Gravity*hrp.AssemblyMass,0)
+            end)
+        else
+            local att=hrp:FindFirstChild("Fly2Att") if att then att:Destroy() end
+            local vf=hrp:FindFirstChild("Fly2Force") if vf then vf:Destroy() end
+            if fly2Conn then fly2Conn:Disconnect() fly2Conn=nil end
+        end
+    end},
+    {"😇 God",     Color3.fromRGB(210,170,0),   function() humanoid.MaxHealth=math.huge; humanoid.Health=math.huge end},
+    {"💚 Heal",    Color3.fromRGB(0,170,0),     function()
+        local hp=sliderValues["💚 HEALTH"] or 100; humanoid.MaxHealth=hp; humanoid.Health=hp
+    end},
+    {"💀 Kill",    Color3.fromRGB(180,0,0),     function() humanoid.Health=0 end},
+    {"🐭 Tiny",    Color3.fromRGB(80,200,80),   function() character:ScaleTo(0.3) end},
+    {"🦖 Giant",   Color3.fromRGB(200,80,80),   function() character:ScaleTo(3) end},
+    {"📏 Normal",  Color3.fromRGB(100,100,100), function() character:ScaleTo(1) end},
+    {"🌀 Spin",    Color3.fromRGB(60,180,255),  function()
+        if spinConn then spinConn:Disconnect() spinConn=nil return end
+        local t,dur=0,sliderValues["🌀 SPIN (secs)"] or 5
+        spinConn=RunService.Heartbeat:Connect(function(dt)
+            t+=dt
+            if hrp then hrp.CFrame=hrp.CFrame*CFrame.Angles(0,math.rad(10),0) end
+            if t>dur then spinConn:Disconnect() spinConn=nil end
+        end)
+    end},
+    {"🌈 Rainbow", Color3.fromRGB(255,100,200), function()
+        if rainbowConn then rainbowConn:Disconnect() rainbowConn=nil return end
+        local t=0
+        rainbowConn=RunService.Heartbeat:Connect(function(dt)
+            t+=dt
+            local c=Color3.fromHSV(t%1,1,1)
+            for _,p in ipairs(character:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then p.Color=c end
+            end
+            if t>10 then rainbowConn:Disconnect() rainbowConn=nil end
+        end)
+    end},
+    {"🚀 Fling",   Color3.fromRGB(255,60,60),   function()
+        local bv=Instance.new("BodyVelocity")
+        bv.Velocity=Vector3.new(math.random(-300,300),math.random(400,800),math.random(-300,300))
+        bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Parent=hrp
+        game:GetService("Debris"):AddItem(bv,0.1)
+    end},
+    {"👻 Noclip",  Color3.fromRGB(150,0,150),   function()
+        isNoclip=not isNoclip
+        if isNoclip then
+            noclipConn=RunService.Stepped:Connect(function()
+                for _,p in ipairs(character:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide=false end
+                end
+            end)
+        else
+            if noclipConn then noclipConn:Disconnect() noclipConn=nil end
+            for _,p in ipairs(character:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide=true end
+            end
+        end
+    end},
+    {"🔭 Zoom",    Color3.fromRGB(0,160,100),   function() workspace.CurrentCamera.FieldOfView=sliderValues["🔭 FOV"] or 120 end},
+    {"👁️ Invis",   Color3.fromRGB(60,60,60),    function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.Transparency=p.Transparency==1 and 0 or 1 end
+        end
+    end},
+    {"💥 Explode", Color3.fromRGB(255,120,0),   function()
+        local e=Instance.new("Explosion"); e.Position=hrp.Position
+        e.BlastRadius=10; e.BlastPressure=0; e.Parent=workspace
+    end},
+    {"🌙 Float",   Color3.fromRGB(80,80,180),   function()
+        local bv=Instance.new("BodyVelocity")
+        bv.Velocity=Vector3.new(0,sliderValues["✈️ FLY SPEED"] or 30,0)
+        bv.MaxForce=Vector3.new(0,1e5,0); bv.Parent=hrp
+        game:GetService("Debris"):AddItem(bv,1)
+    end},
+}
+
+-- 4 columns, 20 commands = 5 rows * 44px = 220px panel
+local COLS = 4
+local BTN_H = 44
+local BTN_ROWS = math.ceil(#commands / COLS)
+local BTN_PANEL_H = BTN_ROWS * (BTN_H + 4) + 8
+
+makeAccordion("🎮  Commands", Color3.fromRGB(0,200,120), BTN_PANEL_H, function(panel)
+    local sf = Instance.new("ScrollingFrame")
+    sf.Size = UDim2.new(1,0,1,0)
+    sf.BackgroundTransparency = 1
+    sf.ScrollBarThickness = 3
+    sf.ScrollBarImageColor3 = Color3.fromRGB(0,200,120)
+    sf.ScrollingDirection = Enum.ScrollingDirection.Y
+    sf.CanvasSize = UDim2.new(0,0,0,0)
+    sf.Parent = panel
+
+    local layout = Instance.new("UIGridLayout")
+    layout.CellSize = UDim2.new(0.235, -4, 0, BTN_H)  -- 4 columns
+    layout.CellPadding = UDim2.new(0, 4, 0, 4)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Parent = sf
+
+    -- Fix scroll: update canvas whenever layout changes
+    local function updateCanvas()
+        sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+    end
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+
+    for _, cmdData in ipairs(commands) do
+        local lbl, col, func = cmdData[1], cmdData[2], cmdData[3]
+        local btn = Instance.new("TextButton")
+        btn.BackgroundColor3 = col
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Text = lbl
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.TextWrapped = true
+        btn.Parent = sf
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+        btn.MouseButton1Click:Connect(function()
+            local ok,err = pcall(func)
+            if not ok then warn("NEHOOTS: "..err) end
+        end)
+        btn.MouseButton1Down:Connect(function()
+            TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=col:Lerp(Color3.new(1,1,1),0.25)}):Play()
+        end)
+        btn.MouseButton1Up:Connect(function()
+            TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=col}):Play()
+        end)
+    end
+
+    -- Force canvas recalc after buttons are added
+    task.defer(updateCanvas)
+end)
+
+-- ========== TOGGLE ==========
+local isOpen = false
+openBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen; frame.Visible = isOpen
+end)
+closeBtn.MouseButton1Click:Connect(function()
+    isOpen = false; frame.Visible = false
+end)
