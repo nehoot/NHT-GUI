@@ -1,0 +1,1294 @@
+-- NEHOOTS GUI
+-- LocalScript in StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local spinConn, rainbowConn, noclipConn, flyConn, fly2Conn = nil,nil,nil,nil,nil
+local vflyConn = nil
+local isFlying, isFlying2, isNoclip, isVFlying = false, false, false, false
+local isAutoRun = false
+local autoRunConn = nil
+local isBouncing = false
+local bounceConn = nil
+local isCarousel = false
+local carouselConn = nil
+local isRainbowSpin = false
+local rainbowSpinConn = nil
+local isGhostWalk = false
+local ghostWalkConn = nil
+local isParachute = false
+local parachuteConn = nil
+local fireObj, sparkleObj, waterObj = nil, nil, nil
+
+-- ESP state
+local espEnabled = false
+local xrayEnabled = false
+local espConn = nil
+local espObjects = {}
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    hrp = char:WaitForChild("HumanoidRootPart")
+    if spinConn then spinConn:Disconnect() spinConn = nil end
+    if rainbowConn then rainbowConn:Disconnect() rainbowConn = nil end
+    if flyConn then flyConn:Disconnect() flyConn = nil end
+    if fly2Conn then fly2Conn:Disconnect() fly2Conn = nil end
+    if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+    if vflyConn then vflyConn:Disconnect() vflyConn = nil end
+    if autoRunConn then autoRunConn:Disconnect() autoRunConn = nil end
+    if bounceConn then bounceConn:Disconnect() bounceConn = nil end
+    if carouselConn then carouselConn:Disconnect() carouselConn = nil end
+    if rainbowSpinConn then rainbowSpinConn:Disconnect() rainbowSpinConn = nil end
+    if ghostWalkConn then ghostWalkConn:Disconnect() ghostWalkConn = nil end
+    if parachuteConn then parachuteConn:Disconnect() parachuteConn = nil end
+    fireObj = nil; sparkleObj = nil; waterObj = nil
+    isFlying = false; isFlying2 = false; isNoclip = false
+    isVFlying = false; isAutoRun = false; isBouncing = false
+    isCarousel = false; isRainbowSpin = false; isGhostWalk = false
+    isParachute = false
+end)
+
+-- ========== GUI ==========
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NehootsGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player.PlayerGui
+
+-- NHT open button
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 52, 0, 52)
+openBtn.Position = UDim2.new(0, 10, 0.5, -26)
+openBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+openBtn.TextColor3 = Color3.new(1,1,1)
+openBtn.Text = "NHT"
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 13
+openBtn.Parent = screenGui
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
+local ob_s = Instance.new("UIStroke", openBtn)
+ob_s.Color = Color3.fromRGB(255,200,0); ob_s.Thickness = 2
+
+local dragging, dragStartPos, btnStartPos = false, nil, nil
+openBtn.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging=true; dragStartPos=i.Position; btnStartPos=openBtn.Position
+    end
+end)
+openBtn.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging=false
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+        local d=i.Position-dragStartPos
+        openBtn.Position=UDim2.new(btnStartPos.X.Scale,btnStartPos.X.Offset+d.X,btnStartPos.Y.Scale,btnStartPos.Y.Offset+d.Y)
+    end
+end)
+
+-- ========== MAIN FRAME ==========
+local TITLE_H  = 42
+local ACC_H    = 34
+local GAP      = 5
+local BPAD     = 8
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, TITLE_H + GAP + ACC_H + GAP + ACC_H + GAP + ACC_H + GAP + ACC_H + BPAD)
+frame.AnchorPoint = Vector2.new(0.5, 0)
+frame.Position = UDim2.new(0.5, 0, 0.05, 0)
+frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+frame.Active = true
+frame.Draggable = true
+frame.Visible = false
+frame.ClipsDescendants = true
+frame.Parent = screenGui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+local frame_stroke = Instance.new("UIStroke", frame)
+frame_stroke.Color = Color3.fromRGB(255,200,0); frame_stroke.Thickness = 2
+
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,TITLE_H)
+titleBar.BackgroundColor3 = Color3.fromRGB(15,15,15)
+titleBar.Parent = frame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0,14)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1,-100,1,0)
+titleLabel.Position = UDim2.new(0,10,0,0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255,200,0)
+titleLabel.Text = "🎮 NEHOOTS GUI"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 14
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local contactBtn = Instance.new("TextButton")
+contactBtn.Size = UDim2.new(0,30,0,30); contactBtn.Position = UDim2.new(1,-68,0,6)
+contactBtn.BackgroundColor3 = Color3.fromRGB(0,136,204); contactBtn.TextColor3 = Color3.new(1,1,1)
+contactBtn.Text = "✉"; contactBtn.Font = Enum.Font.GothamBold; contactBtn.TextSize = 14
+contactBtn.Parent = titleBar
+Instance.new("UICorner", contactBtn).CornerRadius = UDim.new(1,0)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0,30,0,30); closeBtn.Position = UDim2.new(1,-34,0,6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200,40,40); closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Text = "✕"; closeBtn.Font = Enum.Font.GothamBold; closeBtn.TextSize = 13
+closeBtn.Parent = titleBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1,0)
+
+-- ========== CONTACT POPUP ==========
+local contactPopup = Instance.new("Frame")
+contactPopup.Size = UDim2.new(0,240,0,130); contactPopup.Position = UDim2.new(0.5,-120,0.5,-65)
+contactPopup.BackgroundColor3 = Color3.fromRGB(12,12,18); contactPopup.Active = true
+contactPopup.Draggable = true; contactPopup.Visible = false; contactPopup.ZIndex = 10
+contactPopup.Parent = screenGui
+Instance.new("UICorner", contactPopup).CornerRadius = UDim.new(0,14)
+local cp_s = Instance.new("UIStroke", contactPopup); cp_s.Color = Color3.fromRGB(0,136,204); cp_s.Thickness = 2
+
+local function mkLabel(props)
+    local l = Instance.new("TextLabel")
+    for k,v in pairs(props) do l[k]=v end
+    l.BackgroundTransparency=1; l.ZIndex=10; l.Parent=contactPopup; return l
+end
+mkLabel({Size=UDim2.new(1,0,0,32),TextColor3=Color3.fromRGB(0,136,204),Text="✉  Contact",Font=Enum.Font.GothamBold,TextSize=14})
+local cpDiv=Instance.new("Frame"); cpDiv.Size=UDim2.new(0.9,0,0,1); cpDiv.Position=UDim2.new(0.05,0,0,32)
+cpDiv.BackgroundColor3=Color3.fromRGB(0,136,204); cpDiv.BorderSizePixel=0; cpDiv.ZIndex=10; cpDiv.Parent=contactPopup
+mkLabel({Size=UDim2.new(1,-20,0,24),Position=UDim2.new(0,10,0,38),TextColor3=Color3.fromRGB(160,160,160),Text="Telegram",Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left})
+mkLabel({Size=UDim2.new(1,-20,0,26),Position=UDim2.new(0,10,0,58),TextColor3=Color3.new(1,1,1),Text="@void3x",Font=Enum.Font.GothamBold,TextSize=17,TextXAlignment=Enum.TextXAlignment.Left})
+local cpClose=Instance.new("TextButton"); cpClose.Size=UDim2.new(0.88,0,0,28); cpClose.Position=UDim2.new(0.06,0,0,92)
+cpClose.BackgroundColor3=Color3.fromRGB(200,40,40); cpClose.TextColor3=Color3.new(1,1,1)
+cpClose.Text="Close"; cpClose.Font=Enum.Font.GothamBold; cpClose.TextSize=12; cpClose.ZIndex=10; cpClose.Parent=contactPopup
+Instance.new("UICorner",cpClose).CornerRadius=UDim.new(0,8)
+contactBtn.MouseButton1Click:Connect(function() contactPopup.Visible=not contactPopup.Visible end)
+cpClose.MouseButton1Click:Connect(function() contactPopup.Visible=false end)
+
+-- ========== ACCORDION SYSTEM ==========
+local accordionStates = {}
+
+local function recalcFrameHeight()
+    local h = TITLE_H + GAP
+    for _, acc in ipairs(accordionStates) do
+        h = h + ACC_H + GAP
+        if acc.isOpen then
+            h = h + acc.openHeight + GAP
+        end
+    end
+    h = h + BPAD
+    TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        Size = UDim2.new(0, 300, 0, h)
+    }):Play()
+end
+
+local currentY = TITLE_H + GAP
+
+local function makeAccordion(labelText, accentColor, panelHeight, buildContents)
+    local yPos = currentY
+    local accState = {panel=nil, openHeight=panelHeight, isOpen=false}
+    table.insert(accordionStates, accState)
+
+    local accBtn = Instance.new("TextButton")
+    accBtn.Size = UDim2.new(1,-16,0,ACC_H)
+    accBtn.Position = UDim2.new(0,8,0,yPos)
+    accBtn.BackgroundColor3 = Color3.fromRGB(22,22,32)
+    accBtn.TextColor3 = accentColor
+    accBtn.Text = "  "..labelText.."  ▼"
+    accBtn.Font = Enum.Font.GothamBold
+    accBtn.TextSize = 13
+    accBtn.TextXAlignment = Enum.TextXAlignment.Left
+    accBtn.AutoButtonColor = false
+    accBtn.Parent = frame
+    Instance.new("UICorner", accBtn).CornerRadius = UDim.new(0,8)
+    local acc_s = Instance.new("UIStroke", accBtn)
+    acc_s.Color = accentColor; acc_s.Thickness = 1.5
+
+    local arrow = Instance.new("TextLabel")
+    arrow.Size = UDim2.new(0,28,1,0); arrow.Position = UDim2.new(1,-32,0,0)
+    arrow.BackgroundTransparency = 1; arrow.TextColor3 = accentColor
+    arrow.Text = "▼"; arrow.Font = Enum.Font.GothamBold; arrow.TextSize = 12
+    arrow.Parent = accBtn
+
+    local panel = Instance.new("Frame")
+    panel.Size = UDim2.new(1,-16,0,0)
+    panel.Position = UDim2.new(0,8,0,yPos+ACC_H+GAP)
+    panel.BackgroundColor3 = Color3.fromRGB(18,18,26)
+    panel.ClipsDescendants = true
+    panel.BorderSizePixel = 0
+    panel.Parent = frame
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
+    accState.panel = panel
+
+    buildContents(panel)
+
+    currentY = yPos + ACC_H + GAP
+
+    accBtn.MouseButton1Click:Connect(function()
+        accState.isOpen = not accState.isOpen
+        local a = accState.isOpen and "▲" or "▼"
+        arrow.Text = a; accBtn.Text = "  "..labelText.."  "..a
+
+        TweenService:Create(panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(1,-16,0, accState.isOpen and panelHeight or 0)
+        }):Play()
+
+        local yRunner = TITLE_H + GAP
+        for _, acc in ipairs(accordionStates) do
+            yRunner = yRunner + ACC_H + GAP
+            if acc.isOpen then
+                TweenService:Create(acc.panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                    Position = UDim2.new(0,8,0, yRunner)
+                }):Play()
+                yRunner = yRunner + acc.openHeight + GAP
+            else
+                TweenService:Create(acc.panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                    Position = UDim2.new(0,8,0, yRunner)
+                }):Play()
+            end
+        end
+
+        recalcFrameHeight()
+    end)
+
+    return panel
+end
+
+-- ========== SLIDERS ==========
+local sliderValues = {}
+
+local function makeSlider(parent, labelText, minVal, maxVal, defaultVal, index)
+    local yOff = (index-1)*36+6
+    local c = Instance.new("Frame")
+    c.Size=UDim2.new(1,-16,0,30); c.Position=UDim2.new(0,8,0,yOff)
+    c.BackgroundTransparency=1; c.Parent=parent
+
+    local lbl=Instance.new("TextLabel"); lbl.Size=UDim2.new(0.58,0,0,14)
+    lbl.BackgroundTransparency=1; lbl.TextColor3=Color3.fromRGB(180,180,180)
+    lbl.Text=labelText; lbl.Font=Enum.Font.Gotham; lbl.TextSize=11
+    lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.Parent=c
+
+    local vl=Instance.new("TextLabel"); vl.Size=UDim2.new(0.4,0,0,14); vl.Position=UDim2.new(0.6,0,0,0)
+    vl.BackgroundTransparency=1; vl.TextColor3=Color3.fromRGB(255,200,0)
+    vl.Text=tostring(defaultVal); vl.Font=Enum.Font.GothamBold; vl.TextSize=11
+    vl.TextXAlignment=Enum.TextXAlignment.Right; vl.Parent=c
+
+    local track=Instance.new("Frame"); track.Size=UDim2.new(1,0,0,10); track.Position=UDim2.new(0,0,0,18)
+    track.BackgroundColor3=Color3.fromRGB(35,35,50); track.BorderSizePixel=0; track.Parent=c
+    Instance.new("UICorner",track).CornerRadius=UDim.new(1,0)
+
+    local fill=Instance.new("Frame"); fill.Size=UDim2.new((defaultVal-minVal)/(maxVal-minVal),0,1,0)
+    fill.BackgroundColor3=Color3.fromRGB(255,200,0); fill.BorderSizePixel=0; fill.Parent=track
+    Instance.new("UICorner",fill).CornerRadius=UDim.new(1,0)
+
+    local knob=Instance.new("Frame"); knob.Size=UDim2.new(0,18,0,18); knob.AnchorPoint=Vector2.new(0.5,0.5)
+    knob.Position=UDim2.new((defaultVal-minVal)/(maxVal-minVal),0,0.5,0)
+    knob.BackgroundColor3=Color3.new(1,1,1); knob.BorderSizePixel=0; knob.Parent=track
+    Instance.new("UICorner",knob).CornerRadius=UDim.new(1,0)
+
+    sliderValues[labelText]=defaultVal
+    local sliding=false
+    local function upd(x)
+        local rel=math.clamp((x-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1)
+        local v=math.floor(minVal+rel*(maxVal-minVal))
+        sliderValues[labelText]=v; vl.Text=tostring(v)
+        fill.Size=UDim2.new(rel,0,1,0); knob.Position=UDim2.new(rel,0,0.5,0)
+    end
+    track.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            sliding=true; upd(i.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if sliding and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+            upd(i.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            sliding=false
+        end
+    end)
+end
+
+-- ========== SETTINGS ACCORDION ==========
+makeAccordion("⚙️  Settings", Color3.fromRGB(255,200,0), 288, function(panel)
+    makeSlider(panel,"⚡ SPEED",         16,  200, 50,  1)
+    makeSlider(panel,"🦘 JUMP POWER",    50,  300, 100, 2)
+    makeSlider(panel,"💚 HEALTH",        1,   500, 100, 3)
+    makeSlider(panel,"🌀 SPIN (secs)",   1,   30,  5,   4)
+    makeSlider(panel,"✈️ FLY SPEED",     10,  200, 50,  5)
+    makeSlider(panel,"🔭 FOV",           60,  120, 120, 6)
+    makeSlider(panel,"🌈 RAINBOW (secs)",3,   60,  10,  7)
+    makeSlider(panel,"🌍 GRAVITY",       5,   300, 196, 8)
+end)
+
+-- ========== ESP ACCORDION ==========
+local function getPlayerColor(plr)
+    local hue = (math.abs(plr.UserId) % 100) / 100
+    return Color3.fromHSV(hue, 0.85, 1)
+end
+
+local function cleanESPFor(plr)
+    if espObjects[plr] then
+        if espObjects[plr].billboard and espObjects[plr].billboard.Parent then
+            espObjects[plr].billboard:Destroy()
+        end
+        if espObjects[plr].highlight and espObjects[plr].highlight.Parent then
+            espObjects[plr].highlight:Destroy()
+        end
+        espObjects[plr] = nil
+    end
+end
+
+local function buildESPFor(plr)
+    if plr == player then return end
+    local char = plr.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local head = char:FindFirstChild("Head")
+    if not root or not head then return end
+
+    local col = getPlayerColor(plr)
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "NHT_ESP"
+    bb.Size = UDim2.new(0, 100, 0, 28)
+    bb.StudsOffset = Vector3.new(0, 3.2, 0)
+    bb.AlwaysOnTop = true
+    bb.Adornee = head
+    bb.Parent = head
+
+    local nameTag = Instance.new("TextLabel")
+    nameTag.Size = UDim2.new(1,0,0.55,0)
+    nameTag.BackgroundTransparency = 1
+    nameTag.Text = plr.DisplayName
+    nameTag.TextColor3 = col
+    nameTag.Font = Enum.Font.GothamBold
+    nameTag.TextSize = 13
+    nameTag.TextStrokeTransparency = 0
+    nameTag.TextStrokeColor3 = Color3.new(0,0,0)
+    nameTag.Parent = bb
+
+    local distTag = Instance.new("TextLabel")
+    distTag.Size = UDim2.new(1,0,0.45,0)
+    distTag.Position = UDim2.new(0,0,0.55,0)
+    distTag.BackgroundTransparency = 1
+    distTag.Text = "..."
+    distTag.TextColor3 = Color3.fromRGB(220,220,220)
+    distTag.Font = Enum.Font.Gotham
+    distTag.TextSize = 10
+    distTag.TextStrokeTransparency = 0
+    distTag.TextStrokeColor3 = Color3.new(0,0,0)
+    distTag.Parent = bb
+
+    local hl = Instance.new("SelectionBox")
+    hl.Name = "NHT_Highlight"
+    hl.Color3 = col
+    hl.LineThickness = 0.06
+    hl.SurfaceTransparency = xrayEnabled and 0.55 or 1
+    hl.SurfaceColor3 = col
+    hl.Adornee = char
+    hl.Parent = char
+
+    espObjects[plr] = {billboard=bb, highlight=hl, distTag=distTag}
+end
+
+local function rebuildAllESP()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        cleanESPFor(plr)
+        if espEnabled then buildESPFor(plr) end
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not espEnabled then return end
+    for plr, obj in pairs(espObjects) do
+        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and hrp then
+            local dist = math.floor((hrp.Position - plr.Character.HumanoidRootPart.Position).Magnitude)
+            if obj.distTag then obj.distTag.Text = dist.."st" end
+        end
+        if obj.highlight then
+            obj.highlight.SurfaceTransparency = xrayEnabled and 0.55 or 1
+        end
+    end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+    if espEnabled then
+        plr.CharacterAdded:Connect(function()
+            task.wait(1)
+            cleanESPFor(plr)
+            buildESPFor(plr)
+        end)
+        task.wait(1)
+        buildESPFor(plr)
+    end
+end)
+Players.PlayerRemoving:Connect(function(plr)
+    cleanESPFor(plr)
+end)
+
+makeAccordion("👁️  ESP / X-Ray", Color3.fromRGB(100,220,255), 136, function(panel)
+    local function makeToggleRow(parent, yOff, label, color, onToggle)
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1,-16,0,32); row.Position = UDim2.new(0,8,0,yOff)
+        row.BackgroundTransparency = 1; row.Parent = parent
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(0.65,0,1,0)
+        lbl.BackgroundTransparency = 1
+        lbl.TextColor3 = Color3.fromRGB(200,200,200)
+        lbl.Text = label; lbl.Font = Enum.Font.Gotham; lbl.TextSize = 12
+        lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = row
+
+        local togBtn = Instance.new("TextButton")
+        togBtn.Size = UDim2.new(0,60,0,24); togBtn.Position = UDim2.new(1,-60,0,4)
+        togBtn.BackgroundColor3 = Color3.fromRGB(60,60,70)
+        togBtn.TextColor3 = Color3.fromRGB(180,180,180)
+        togBtn.Text = "OFF"; togBtn.Font = Enum.Font.GothamBold; togBtn.TextSize = 11
+        togBtn.Parent = row
+        Instance.new("UICorner", togBtn).CornerRadius = UDim.new(0,6)
+
+        local state = false
+        togBtn.MouseButton1Click:Connect(function()
+            state = not state
+            togBtn.Text = state and "ON" or "OFF"
+            togBtn.BackgroundColor3 = state and color or Color3.fromRGB(60,60,70)
+            togBtn.TextColor3 = state and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
+            onToggle(state)
+        end)
+        return togBtn
+    end
+
+    makeToggleRow(panel, 6, "👁️ Player ESP (names + dist)", Color3.fromRGB(100,220,255), function(on)
+        espEnabled = on
+        rebuildAllESP()
+        if on then
+            for _, plr in ipairs(Players:GetPlayers()) do
+                plr.CharacterAdded:Connect(function()
+                    task.wait(1)
+                    cleanESPFor(plr)
+                    buildESPFor(plr)
+                end)
+            end
+        end
+    end)
+
+    makeToggleRow(panel, 44, "🔮 X-Ray Chams (see through walls)", Color3.fromRGB(200,100,255), function(on)
+        xrayEnabled = on
+        for _, obj in pairs(espObjects) do
+            if obj.highlight then
+                obj.highlight.SurfaceTransparency = on and 0.55 or 1
+            end
+        end
+    end)
+
+    makeToggleRow(panel, 82, "🏷️ Show Team Colors", Color3.fromRGB(255,180,60), function(on)
+        for plr, obj in pairs(espObjects) do
+            local col
+            if on and plr.Team then
+                col = plr.TeamColor.Color
+            else
+                col = getPlayerColor(plr)
+            end
+            if obj.billboard then
+                for _, lbl in ipairs(obj.billboard:GetDescendants()) do
+                    if lbl:IsA("TextLabel") and lbl.Name ~= "distTag" then lbl.TextColor3 = col end
+                end
+            end
+            if obj.highlight then obj.highlight.Color3 = col; obj.highlight.SurfaceColor3 = col end
+        end
+    end)
+end)
+
+-- ========== WORLD ACCORDION ==========
+makeAccordion("🌍  World", Color3.fromRGB(100,255,160), 250, function(panel)
+
+    -- Time of Day slider
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Size = UDim2.new(1,-16,0,14); timeLabel.Position = UDim2.new(0,8,0,6)
+    timeLabel.BackgroundTransparency=1; timeLabel.TextColor3=Color3.fromRGB(180,180,180)
+    timeLabel.Text="🕐 Time of Day"; timeLabel.Font=Enum.Font.Gotham; timeLabel.TextSize=11
+    timeLabel.TextXAlignment=Enum.TextXAlignment.Left; timeLabel.Parent=panel
+
+    local timeVal = Instance.new("TextLabel")
+    timeVal.Size=UDim2.new(0.4,0,0,14); timeVal.Position=UDim2.new(0.6,0,0,6)
+    timeVal.BackgroundTransparency=1; timeVal.TextColor3=Color3.fromRGB(100,255,160)
+    timeVal.Text="14"; timeVal.Font=Enum.Font.GothamBold; timeVal.TextSize=11
+    timeVal.TextXAlignment=Enum.TextXAlignment.Right; timeVal.Parent=panel
+
+    local timeTrack=Instance.new("Frame"); timeTrack.Size=UDim2.new(1,-16,0,10); timeTrack.Position=UDim2.new(0,8,0,24)
+    timeTrack.BackgroundColor3=Color3.fromRGB(35,35,50); timeTrack.BorderSizePixel=0; timeTrack.Parent=panel
+    Instance.new("UICorner",timeTrack).CornerRadius=UDim.new(1,0)
+    local timeFill=Instance.new("Frame"); timeFill.Size=UDim2.new(0.58,0,1,0)
+    timeFill.BackgroundColor3=Color3.fromRGB(100,255,160); timeFill.BorderSizePixel=0; timeFill.Parent=timeTrack
+    Instance.new("UICorner",timeFill).CornerRadius=UDim.new(1,0)
+    local timeKnob=Instance.new("Frame"); timeKnob.Size=UDim2.new(0,18,0,18); timeKnob.AnchorPoint=Vector2.new(0.5,0.5)
+    timeKnob.Position=UDim2.new(0.58,0,0.5,0); timeKnob.BackgroundColor3=Color3.new(1,1,1)
+    timeKnob.BorderSizePixel=0; timeKnob.Parent=timeTrack
+    Instance.new("UICorner",timeKnob).CornerRadius=UDim.new(1,0)
+    local timeSl=false
+    local function updTime(x)
+        local rel=math.clamp((x-timeTrack.AbsolutePosition.X)/timeTrack.AbsoluteSize.X,0,1)
+        local v=math.floor(rel*24); timeVal.Text=tostring(v)
+        timeFill.Size=UDim2.new(rel,0,1,0); timeKnob.Position=UDim2.new(rel,0,0.5,0)
+        Lighting.TimeOfDay = string.format("%02d:00:00", v)
+    end
+    timeTrack.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then timeSl=true; updTime(i.Position.X) end end)
+    UserInputService.InputChanged:Connect(function(i) if timeSl and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then updTime(i.Position.X) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then timeSl=false end end)
+
+    -- Fog slider
+    local fogLabel=Instance.new("TextLabel"); fogLabel.Size=UDim2.new(1,-16,0,14); fogLabel.Position=UDim2.new(0,8,0,46)
+    fogLabel.BackgroundTransparency=1; fogLabel.TextColor3=Color3.fromRGB(180,180,180)
+    fogLabel.Text="🌫️ Fog Distance"; fogLabel.Font=Enum.Font.Gotham; fogLabel.TextSize=11
+    fogLabel.TextXAlignment=Enum.TextXAlignment.Left; fogLabel.Parent=panel
+    local fogVal=Instance.new("TextLabel"); fogVal.Size=UDim2.new(0.4,0,0,14); fogVal.Position=UDim2.new(0.6,0,0,46)
+    fogVal.BackgroundTransparency=1; fogVal.TextColor3=Color3.fromRGB(100,255,160)
+    fogVal.Text="1000"; fogVal.Font=Enum.Font.GothamBold; fogVal.TextSize=11
+    fogVal.TextXAlignment=Enum.TextXAlignment.Right; fogVal.Parent=panel
+    local fogTrack=Instance.new("Frame"); fogTrack.Size=UDim2.new(1,-16,0,10); fogTrack.Position=UDim2.new(0,8,0,64)
+    fogTrack.BackgroundColor3=Color3.fromRGB(35,35,50); fogTrack.BorderSizePixel=0; fogTrack.Parent=panel
+    Instance.new("UICorner",fogTrack).CornerRadius=UDim.new(1,0)
+    local fogFill=Instance.new("Frame"); fogFill.Size=UDim2.new(0.5,0,1,0)
+    fogFill.BackgroundColor3=Color3.fromRGB(100,255,160); fogFill.BorderSizePixel=0; fogFill.Parent=fogTrack
+    Instance.new("UICorner",fogFill).CornerRadius=UDim.new(1,0)
+    local fogKnob=Instance.new("Frame"); fogKnob.Size=UDim2.new(0,18,0,18); fogKnob.AnchorPoint=Vector2.new(0.5,0.5)
+    fogKnob.Position=UDim2.new(0.5,0,0.5,0); fogKnob.BackgroundColor3=Color3.new(1,1,1)
+    fogKnob.BorderSizePixel=0; fogKnob.Parent=fogTrack
+    Instance.new("UICorner",fogKnob).CornerRadius=UDim.new(1,0)
+    local fogSl=false
+    local function updFog(x)
+        local rel=math.clamp((x-fogTrack.AbsolutePosition.X)/fogTrack.AbsoluteSize.X,0,1)
+        local v=math.floor(rel*2000); fogVal.Text=tostring(v)
+        fogFill.Size=UDim2.new(rel,0,1,0); fogKnob.Position=UDim2.new(rel,0,0.5,0)
+        Lighting.FogEnd=math.max(v,1); Lighting.FogStart=0
+    end
+    fogTrack.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then fogSl=true; updFog(i.Position.X) end end)
+    UserInputService.InputChanged:Connect(function(i) if fogSl and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then updFog(i.Position.X) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then fogSl=false end end)
+
+    -- World toggle rows
+    local function makeWorldToggle(yOff, label, color, onFn)
+        local row=Instance.new("Frame"); row.Size=UDim2.new(1,-16,0,30); row.Position=UDim2.new(0,8,0,yOff)
+        row.BackgroundTransparency=1; row.Parent=panel
+        local lbl=Instance.new("TextLabel"); lbl.Size=UDim2.new(0.65,0,1,0); lbl.BackgroundTransparency=1
+        lbl.TextColor3=Color3.fromRGB(200,200,200); lbl.Text=label; lbl.Font=Enum.Font.Gotham; lbl.TextSize=12
+        lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.Parent=row
+        local tb=Instance.new("TextButton"); tb.Size=UDim2.new(0,60,0,22); tb.Position=UDim2.new(1,-60,0,4)
+        tb.BackgroundColor3=Color3.fromRGB(60,60,70); tb.TextColor3=Color3.fromRGB(180,180,180)
+        tb.Text="OFF"; tb.Font=Enum.Font.GothamBold; tb.TextSize=11; tb.Parent=row
+        Instance.new("UICorner",tb).CornerRadius=UDim.new(0,6)
+        local st=false
+        tb.MouseButton1Click:Connect(function()
+            st=not st; tb.Text=st and "ON" or "OFF"
+            tb.BackgroundColor3=st and color or Color3.fromRGB(60,60,70)
+            tb.TextColor3=st and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
+            onFn(st)
+        end)
+    end
+
+    makeWorldToggle(86, "🌧️ Rain Effect", Color3.fromRGB(80,160,255), function(on)
+        local existingRain = workspace:FindFirstChild("NHT_Rain")
+        if on then
+            if existingRain then existingRain:Destroy() end
+            local rain=Instance.new("Part"); rain.Name="NHT_Rain"; rain.Size=Vector3.new(500,1,500)
+            rain.Anchored=true; rain.CanCollide=false; rain.Transparency=1
+            rain.Position=Vector3.new(0,200,0); rain.Parent=workspace
+            local pe=Instance.new("ParticleEmitter"); pe.Rate=400; pe.Lifetime=NumberRange.new(1,2)
+            pe.Speed=NumberRange.new(50,80); pe.SpreadAngle=Vector2.new(5,5)
+            pe.Texture="rbxasset://textures/particles/rain_main.dds"
+            pe.Size=NumberSequence.new(0.05); pe.Rotation=NumberRange.new(0,180)
+            pe.Parent=rain
+        else
+            if existingRain then existingRain:Destroy() end
+        end
+    end)
+
+    makeWorldToggle(122, "🌑 Dark Ambient", Color3.fromRGB(60,60,100), function(on)
+        Lighting.Ambient = on and Color3.fromRGB(0,0,0) or Color3.fromRGB(70,70,70)
+        Lighting.OutdoorAmbient = on and Color3.fromRGB(0,0,0) or Color3.fromRGB(100,100,100)
+    end)
+
+    makeWorldToggle(158, "☀️ Bright Sky", Color3.fromRGB(255,240,100), function(on)
+        Lighting.Brightness = on and 10 or 2
+        Lighting.Ambient = on and Color3.fromRGB(180,180,180) or Color3.fromRGB(70,70,70)
+    end)
+
+    makeWorldToggle(194, "🌈 Rainbow Sky", Color3.fromRGB(255,100,200), function(on)
+        if on then
+            local t=0
+            rainbowConn = RunService.Heartbeat:Connect(function(dt)
+                t+=dt
+                Lighting.FogColor=Color3.fromHSV(t%1,0.5,1)
+                Lighting.Ambient=Color3.fromHSV((t+0.33)%1,0.3,0.8)
+            end)
+        else
+            if rainbowConn then rainbowConn:Disconnect(); rainbowConn=nil end
+            Lighting.FogColor=Color3.fromRGB(192,192,192)
+            Lighting.Ambient=Color3.fromRGB(70,70,70)
+        end
+    end)
+end)
+
+-- ========== TELEPORT ACCORDION ==========
+makeAccordion("🎯  Teleport", Color3.fromRGB(255,160,60), 200, function(panel)
+
+    local coordLabel=Instance.new("TextLabel"); coordLabel.Size=UDim2.new(1,-16,0,18); coordLabel.Position=UDim2.new(0,8,0,6)
+    coordLabel.BackgroundTransparency=1; coordLabel.TextColor3=Color3.fromRGB(255,160,60)
+    coordLabel.Text="📍 Teleport to XYZ Coords"; coordLabel.Font=Enum.Font.GothamBold; coordLabel.TextSize=11
+    coordLabel.TextXAlignment=Enum.TextXAlignment.Left; coordLabel.Parent=panel
+
+    local function makeCoordBox(xOff, placeholder)
+        local box=Instance.new("TextBox"); box.Size=UDim2.new(0,70,0,26); box.Position=UDim2.new(0,xOff,0,28)
+        box.BackgroundColor3=Color3.fromRGB(28,28,40); box.TextColor3=Color3.new(1,1,1)
+        box.PlaceholderText=placeholder; box.PlaceholderColor3=Color3.fromRGB(120,120,120)
+        box.Text="0"; box.Font=Enum.Font.Gotham; box.TextSize=12; box.Parent=panel
+        Instance.new("UICorner",box).CornerRadius=UDim.new(0,6)
+        local bs=Instance.new("UIStroke",box); bs.Color=Color3.fromRGB(255,160,60); bs.Thickness=1
+        return box
+    end
+    local xBox=makeCoordBox(8,"X")
+    local yBox=makeCoordBox(86,"Y")
+    local zBox=makeCoordBox(164,"Z")
+
+    local goBtn=Instance.new("TextButton"); goBtn.Size=UDim2.new(1,-16,0,28); goBtn.Position=UDim2.new(0,8,0,62)
+    goBtn.BackgroundColor3=Color3.fromRGB(255,160,60); goBtn.TextColor3=Color3.new(1,1,1)
+    goBtn.Text="🚀 Teleport"; goBtn.Font=Enum.Font.GothamBold; goBtn.TextSize=12; goBtn.Parent=panel
+    Instance.new("UICorner",goBtn).CornerRadius=UDim.new(0,7)
+    goBtn.MouseButton1Click:Connect(function()
+        local x=tonumber(xBox.Text) or 0
+        local y=tonumber(yBox.Text) or 0
+        local z=tonumber(zBox.Text) or 0
+        hrp.CFrame=CFrame.new(x,y,z)
+    end)
+
+    -- Divider
+    local div=Instance.new("Frame"); div.Size=UDim2.new(0.9,0,0,1); div.Position=UDim2.new(0.05,0,0,100)
+    div.BackgroundColor3=Color3.fromRGB(255,160,60); div.BorderSizePixel=0; div.Parent=panel
+
+    -- Quick TP buttons
+    local function makeTPBtn(yOff, w, xOff, label, color, fn)
+        local btn=Instance.new("TextButton"); btn.Size=UDim2.new(w,-4,0,28); btn.Position=UDim2.new(xOff,2,0,yOff)
+        btn.BackgroundColor3=color; btn.TextColor3=Color3.new(1,1,1)
+        btn.Text=label; btn.Font=Enum.Font.GothamBold; btn.TextSize=10; btn.TextWrapped=true; btn.Parent=panel
+        Instance.new("UICorner",btn).CornerRadius=UDim.new(0,7)
+        btn.MouseButton1Click:Connect(function() pcall(fn) end)
+    end
+
+    makeTPBtn(110, 0.5, 0, "🎲 Random Player", Color3.fromRGB(180,60,255), function()
+        local plrs=Players:GetPlayers()
+        local others={}
+        for _,p in ipairs(plrs) do if p~=player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then table.insert(others,p) end end
+        if #others>0 then
+            local target=others[math.random(1,#others)]
+            hrp.CFrame=target.Character.HumanoidRootPart.CFrame+Vector3.new(0,3,0)
+        end
+    end)
+
+    makeTPBtn(110, 0.5, 0.5, "🏁 Map Center", Color3.fromRGB(0,180,120), function()
+        hrp.CFrame=CFrame.new(0,50,0)
+    end)
+
+    makeTPBtn(146, 0.5, 0, "🔝 Skybox (up)", Color3.fromRGB(60,120,255), function()
+        hrp.CFrame=CFrame.new(hrp.Position.X,2000,hrp.Position.Z)
+    end)
+
+    makeTPBtn(146, 0.5, 0.5, "📌 Save Pos", Color3.fromRGB(100,100,100), function()
+        xBox.Text=tostring(math.floor(hrp.Position.X))
+        yBox.Text=tostring(math.floor(hrp.Position.Y))
+        zBox.Text=tostring(math.floor(hrp.Position.Z))
+    end)
+end)
+
+-- ========== VEHICLE ACCORDION ==========
+makeAccordion("🚗  Vehicle", Color3.fromRGB(255,140,0), 140, function(panel)
+
+    local function makeVBtn(parent, yOff, w, xOff, label, color, func)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(w,-4,0,30); btn.Position = UDim2.new(xOff,2,0,yOff)
+        btn.BackgroundColor3 = color; btn.TextColor3 = Color3.new(1,1,1)
+        btn.Text = label; btn.Font = Enum.Font.GothamBold; btn.TextSize = 11
+        btn.TextWrapped = true; btn.Parent = parent
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,7)
+        btn.MouseButton1Click:Connect(function()
+            local ok,err = pcall(func)
+            if not ok then warn("NHT VEH: "..err) end
+        end)
+        btn.MouseButton1Down:Connect(function()
+            TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=color:Lerp(Color3.new(1,1,1),0.25)}):Play()
+        end)
+        btn.MouseButton1Up:Connect(function()
+            TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=color}):Play()
+        end)
+    end
+
+    local info = Instance.new("TextLabel")
+    info.Size = UDim2.new(1,-16,0,18); info.Position = UDim2.new(0,8,0,6)
+    info.BackgroundTransparency = 1; info.TextColor3 = Color3.fromRGB(160,160,160)
+    info.Text = "Sit in a vehicle seat first, then activate"; info.Font = Enum.Font.Gotham
+    info.TextSize = 10; info.TextWrapped = true; info.Parent = panel
+
+    makeVBtn(panel, 30, 0.5, 0, "✈️ VFly ON/OFF", Color3.fromRGB(0,180,255), function()
+        local seat = humanoid.SeatPart
+        if not seat then warn("NHT: Not in a vehicle seat!") return end
+        local vehicleModel = seat
+        while vehicleModel.Parent and vehicleModel.Parent ~= workspace do vehicleModel = vehicleModel.Parent end
+        local vRoot = vehicleModel:IsA("Model") and (vehicleModel.PrimaryPart or vehicleModel:FindFirstChildWhichIsA("BasePart")) or seat
+
+        isVFlying = not isVFlying
+        if isVFlying then
+            local bv = Instance.new("BodyVelocity"); bv.Name = "VFlyVel"; bv.Velocity = Vector3.zero
+            bv.MaxForce = Vector3.new(1e6,1e6,1e6); bv.Parent = vRoot
+            local bg = Instance.new("BodyGyro"); bg.Name = "VFlyGyro"; bg.D = 200
+            bg.MaxTorque = Vector3.new(1e6,1e6,1e6); bg.Parent = vRoot
+            vflyConn = RunService.Heartbeat:Connect(function()
+                if not isVFlying then
+                    vflyConn:Disconnect()
+                    local v=vRoot:FindFirstChild("VFlyVel") if v then v:Destroy() end
+                    local g=vRoot:FindFirstChild("VFlyGyro") if g then g:Destroy() end
+                    return
+                end
+                local cam = workspace.CurrentCamera; local speed = sliderValues["✈️ FLY SPEED"] or 60
+                local d = Vector3.zero
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then d += cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then d -= cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then d -= cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then d += cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then d += Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then d -= Vector3.new(0,1,0) end
+                bv.Velocity = d.Magnitude > 0 and d.Unit * speed or Vector3.zero
+                bg.CFrame = cam.CFrame
+            end)
+        else
+            if vflyConn then vflyConn:Disconnect() vflyConn = nil end
+            local v=vRoot:FindFirstChild("VFlyVel") if v then v:Destroy() end
+            local g=vRoot:FindFirstChild("VFlyGyro") if g then g:Destroy() end
+        end
+    end)
+
+    makeVBtn(panel, 30, 0.5, 0.5, "🚀 VBoost", Color3.fromRGB(255,80,0), function()
+        local seat = humanoid.SeatPart
+        if not seat then warn("NHT: Not in a vehicle seat!") return end
+        local vehicleModel = seat
+        while vehicleModel.Parent and vehicleModel.Parent ~= workspace do vehicleModel = vehicleModel.Parent end
+        local vRoot = vehicleModel:IsA("Model") and (vehicleModel.PrimaryPart or vehicleModel:FindFirstChildWhichIsA("BasePart")) or seat
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * (sliderValues["✈️ FLY SPEED"] or 80) * 2
+        bv.MaxForce = Vector3.new(1e6,1e6,1e6); bv.Parent = vRoot
+        game:GetService("Debris"):AddItem(bv, 0.25)
+    end)
+
+    makeVBtn(panel, 68, 0.5, 0, "🌊 VFloat", Color3.fromRGB(0,160,200), function()
+        local seat = humanoid.SeatPart
+        if not seat then warn("NHT: Not in a vehicle seat!") return end
+        local vehicleModel = seat
+        while vehicleModel.Parent and vehicleModel.Parent ~= workspace do vehicleModel = vehicleModel.Parent end
+        local vRoot = vehicleModel:IsA("Model") and (vehicleModel.PrimaryPart or vehicleModel:FindFirstChildWhichIsA("BasePart")) or seat
+        local bv = Instance.new("BodyVelocity"); bv.Velocity = Vector3.new(0, 60, 0)
+        bv.MaxForce = Vector3.new(0,1e6,0); bv.Parent = vRoot
+        game:GetService("Debris"):AddItem(bv, 1.2)
+    end)
+
+    makeVBtn(panel, 68, 0.5, 0.5, "👻 VNoclip", Color3.fromRGB(150,0,200), function()
+        local seat = humanoid.SeatPart
+        if not seat then warn("NHT: Not in a vehicle seat!") return end
+        local vehicleModel = seat
+        while vehicleModel.Parent and vehicleModel.Parent ~= workspace do vehicleModel = vehicleModel.Parent end
+        for _, part in ipairs(vehicleModel:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = not part.CanCollide end
+        end
+    end)
+
+    makeVBtn(panel, 106, 1, 0, "🚪 Exit Seat", Color3.fromRGB(80,80,80), function()
+        humanoid.Sit = false
+    end)
+end)
+
+-- ========== COMMANDS ==========
+local commands = {
+    {"⚡ Speed",   Color3.fromRGB(0,120,200),   function() humanoid.WalkSpeed=sliderValues["⚡ SPEED"] or 50 end},
+    {"🦘 Jump",    Color3.fromRGB(100,0,200),   function() humanoid.JumpPower=sliderValues["🦘 JUMP POWER"] or 100 end},
+    {"🔄 Reset",   Color3.fromRGB(80,80,80),    function()
+        humanoid.WalkSpeed=16; humanoid.JumpPower=50
+        humanoid.MaxHealth=100; humanoid.Health=100
+        workspace.CurrentCamera.FieldOfView=70
+        workspace.Gravity=196
+    end},
+    {"🌍 Gravity", Color3.fromRGB(60,120,200),  function()
+        workspace.Gravity = sliderValues["🌍 GRAVITY"] or 196
+    end},
+    {"✈️ Fly",     Color3.fromRGB(0,180,255),   function()
+        isFlying=not isFlying
+        if isFlying then
+            local bv=Instance.new("BodyVelocity"); bv.Name="FlyVelocity"; bv.Velocity=Vector3.zero
+            bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Parent=hrp
+            local bg=Instance.new("BodyGyro"); bg.Name="FlyGyro"
+            bg.MaxTorque=Vector3.new(1e5,1e5,1e5); bg.D=100; bg.Parent=hrp
+            humanoid.PlatformStand=true
+            flyConn=RunService.Heartbeat:Connect(function()
+                if not isFlying then flyConn:Disconnect() return end
+                local cam=workspace.CurrentCamera; local speed=sliderValues["✈️ FLY SPEED"] or 50
+                local d=Vector3.zero
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then d+=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then d-=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then d-=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then d+=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then d+=Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then d-=Vector3.new(0,1,0) end
+                bv.Velocity=d.Magnitude>0 and d.Unit*speed or Vector3.zero; bg.CFrame=cam.CFrame
+            end)
+        else
+            humanoid.PlatformStand=false
+            local bv=hrp:FindFirstChild("FlyVelocity") if bv then bv:Destroy() end
+            local bg=hrp:FindFirstChild("FlyGyro") if bg then bg:Destroy() end
+            if flyConn then flyConn:Disconnect() flyConn=nil end
+        end
+    end},
+    {"🛸 Fly 2",   Color3.fromRGB(0,220,180),   function()
+        isFlying2=not isFlying2
+        if isFlying2 then
+            humanoid.PlatformStand=false
+            local att=Instance.new("Attachment"); att.Name="Fly2Att"; att.Parent=hrp
+            local vf=Instance.new("VectorForce"); vf.Name="Fly2Force"; vf.Attachment0=att
+            vf.Force=Vector3.new(0,workspace.Gravity*hrp.AssemblyMass,0)
+            vf.RelativeTo=Enum.ActuatorRelativeTo.World; vf.Parent=hrp
+            fly2Conn=RunService.Heartbeat:Connect(function()
+                if not isFlying2 then fly2Conn:Disconnect() return end
+                local cam=workspace.CurrentCamera; local speed=sliderValues["✈️ FLY SPEED"] or 50
+                local d=Vector3.zero
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then d+=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then d-=cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then d-=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then d+=cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then d+=Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then d-=Vector3.new(0,1,0) end
+                hrp.AssemblyLinearVelocity=d.Magnitude>0 and d.Unit*speed or Vector3.zero
+                vf.Force=Vector3.new(0,workspace.Gravity*hrp.AssemblyMass,0)
+            end)
+        else
+            local att=hrp:FindFirstChild("Fly2Att") if att then att:Destroy() end
+            local vf=hrp:FindFirstChild("Fly2Force") if vf then vf:Destroy() end
+            if fly2Conn then fly2Conn:Disconnect() fly2Conn=nil end
+        end
+    end},
+    {"😇 God",     Color3.fromRGB(210,170,0),   function() humanoid.MaxHealth=math.huge; humanoid.Health=math.huge end},
+    {"💚 Heal",    Color3.fromRGB(0,170,0),     function()
+        local hp=sliderValues["💚 HEALTH"] or 100; humanoid.MaxHealth=hp; humanoid.Health=hp
+    end},
+    {"💀 Kill",    Color3.fromRGB(180,0,0),     function() humanoid.Health=0 end},
+    {"🐭 Tiny",    Color3.fromRGB(80,200,80),   function()
+        for _,v in ipairs({"BodyHeightScale","BodyWidthScale","BodyDepthScale","HeadScale","LeftHandScale","RightHandScale","LeftFootScale","RightFootScale"}) do
+            local s=humanoid:FindFirstChild(v); if s then s.Value=0.3 end
+        end
+    end},
+    {"🦖 Giant",   Color3.fromRGB(200,80,80),   function()
+        for _,v in ipairs({"BodyHeightScale","BodyWidthScale","BodyDepthScale","HeadScale","LeftHandScale","RightHandScale","LeftFootScale","RightFootScale"}) do
+            local s=humanoid:FindFirstChild(v); if s then s.Value=3 end
+        end
+    end},
+    {"📏 Normal",  Color3.fromRGB(100,100,100), function()
+        for _,v in ipairs({"BodyHeightScale","BodyWidthScale","BodyDepthScale","HeadScale","LeftHandScale","RightHandScale","LeftFootScale","RightFootScale"}) do
+            local s=humanoid:FindFirstChild(v); if s then s.Value=1 end
+        end
+    end},
+    {"🔊 BigHead", Color3.fromRGB(255,120,60),  function()
+        local s=humanoid:FindFirstChild("HeadScale"); if s then s.Value=3 end
+    end},
+    {"🔉 SmallHead",Color3.fromRGB(60,180,255), function()
+        local s=humanoid:FindFirstChild("HeadScale"); if s then s.Value=0.3 end
+    end},
+    {"🌀 Spin",    Color3.fromRGB(60,180,255),  function()
+        if spinConn then spinConn:Disconnect() spinConn=nil return end
+        local t,dur=0,sliderValues["🌀 SPIN (secs)"] or 5
+        spinConn=RunService.Heartbeat:Connect(function(dt)
+            t+=dt
+            if hrp then hrp.CFrame=hrp.CFrame*CFrame.Angles(0,math.rad(10),0) end
+            if t>dur then spinConn:Disconnect() spinConn=nil end
+        end)
+    end},
+    {"🌈 Rainbow", Color3.fromRGB(255,100,200), function()
+        if rainbowConn then rainbowConn:Disconnect() rainbowConn=nil return end
+        local t=0
+        rainbowConn=RunService.Heartbeat:Connect(function(dt)
+            t+=dt
+            local c=Color3.fromHSV(t%1,1,1)
+            for _,p in ipairs(character:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then p.Color=c end
+            end
+            if t>(sliderValues["🌈 RAINBOW (secs)"] or 10) then rainbowConn:Disconnect() rainbowConn=nil end
+        end)
+    end},
+    {"🌈🌀 RbwSpin",Color3.fromRGB(200,80,255), function()
+        isRainbowSpin=not isRainbowSpin
+        if isRainbowSpin then
+            local t=0
+            rainbowSpinConn=RunService.Heartbeat:Connect(function(dt)
+                if not isRainbowSpin then rainbowSpinConn:Disconnect() return end
+                t+=dt
+                if hrp then hrp.CFrame=hrp.CFrame*CFrame.Angles(0,math.rad(8),0) end
+                local c=Color3.fromHSV(t%1,1,1)
+                for _,p in ipairs(character:GetDescendants()) do
+                    if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then p.Color=c end
+                end
+            end)
+        else
+            if rainbowSpinConn then rainbowSpinConn:Disconnect() rainbowSpinConn=nil end
+        end
+    end},
+    {"🚀 Fling",   Color3.fromRGB(255,60,60),   function()
+        local bv=Instance.new("BodyVelocity")
+        bv.Velocity=Vector3.new(math.random(-300,300),math.random(400,800),math.random(-300,300))
+        bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Parent=hrp
+        game:GetService("Debris"):AddItem(bv,0.1)
+    end},
+    {"👻 Noclip",  Color3.fromRGB(150,0,150),   function()
+        isNoclip=not isNoclip
+        if isNoclip then
+            noclipConn=RunService.Stepped:Connect(function()
+                for _,p in ipairs(character:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide=false end
+                end
+            end)
+        else
+            if noclipConn then noclipConn:Disconnect() noclipConn=nil end
+            for _,p in ipairs(character:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide=true end
+            end
+        end
+    end},
+    {"🔭 Zoom",    Color3.fromRGB(0,160,100),   function() workspace.CurrentCamera.FieldOfView=sliderValues["🔭 FOV"] or 120 end},
+    {"👁️ Invis",   Color3.fromRGB(60,60,60),    function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.Transparency=p.Transparency==1 and 0 or 1 end
+        end
+    end},
+    {"💥 Explode", Color3.fromRGB(255,120,0),   function()
+        local e=Instance.new("Explosion"); e.Position=hrp.Position
+        e.BlastRadius=10; e.BlastPressure=0; e.Parent=workspace
+    end},
+    {"🌙 Float",   Color3.fromRGB(80,80,180),   function()
+        local bv=Instance.new("BodyVelocity")
+        bv.Velocity=Vector3.new(0,sliderValues["✈️ FLY SPEED"] or 30,0)
+        bv.MaxForce=Vector3.new(0,1e5,0); bv.Parent=hrp
+        game:GetService("Debris"):AddItem(bv,1)
+    end},
+    {"🏃 AutoRun", Color3.fromRGB(0,200,100),   function()
+        isAutoRun = not isAutoRun
+        if isAutoRun then
+            autoRunConn = RunService.Heartbeat:Connect(function()
+                if humanoid then humanoid:Move(Vector3.new(0,0,-1), false) end
+            end)
+        else
+            if autoRunConn then autoRunConn:Disconnect() autoRunConn = nil end
+        end
+    end},
+    {"🎯 ToSpawn", Color3.fromRGB(0,180,120),   function()
+        local spawn = workspace:FindFirstChildOfClass("SpawnLocation")
+        if spawn then hrp.CFrame = spawn.CFrame + Vector3.new(0,5,0)
+        else hrp.CFrame = CFrame.new(0,10,0) end
+    end},
+    {"🧲 Pull",    Color3.fromRGB(180,0,180),   function()
+        local cam = workspace.CurrentCamera
+        hrp.CFrame = hrp.CFrame + cam.CFrame.LookVector * 20
+    end},
+    {"🧊 Freeze",  Color3.fromRGB(80,180,220),  function()
+        hrp.Anchored = not hrp.Anchored
+    end},
+    {"🎭 Clone",   Color3.fromRGB(120,60,180),  function()
+        local clone = character:Clone(); clone.Parent = workspace
+        for _, p in ipairs(clone:GetDescendants()) do
+            if p:IsA("Script") or p:IsA("LocalScript") then p:Destroy() end
+        end
+        local ch = clone:FindFirstChildOfClass("Humanoid")
+        if ch then ch.Health = 0 end
+        game:GetService("Debris"):AddItem(clone, 8)
+    end},
+    {"💃 Dance",   Color3.fromRGB(255,80,180),  function()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://507771019"
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            local track = animator:LoadAnimation(anim)
+            track:Play()
+            game:GetService("Debris"):AddItem(anim, 5)
+        end
+    end},
+    {"🤸 Flip",    Color3.fromRGB(255,160,0),   function()
+        local bv = Instance.new("BodyVelocity")
+        local fwd = hrp.CFrame.LookVector
+        bv.Velocity = Vector3.new(fwd.X*30, 60, fwd.Z*30)
+        bv.MaxForce = Vector3.new(1e5,1e5,1e5); bv.Parent = hrp
+        game:GetService("Debris"):AddItem(bv, 0.3)
+    end},
+    {"🏠 ToOrigin",Color3.fromRGB(100,140,80),  function()
+        hrp.CFrame = CFrame.new(0, 50, 0)
+    end},
+    {"⚫ Black",   Color3.fromRGB(30,30,30),    function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then p.Color=Color3.fromRGB(10,10,10) end
+        end
+    end},
+    {"⬜ White",   Color3.fromRGB(200,200,200), function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then p.Color=Color3.fromRGB(255,255,255) end
+        end
+    end},
+    -- ===== NEW COMMANDS =====
+    {"🔥 Fire",    Color3.fromRGB(255,80,0),    function()
+        if fireObj then fireObj:Destroy(); fireObj=nil; return end
+        local f=Instance.new("Fire"); f.Size=5; f.Heat=9
+        local t=hrp:FindFirstChild("NHT_FireAtt") or Instance.new("Attachment",hrp)
+        t.Name="NHT_FireAtt"; f.Parent=t; fireObj=f
+    end},
+    {"✨ Sparkle", Color3.fromRGB(255,220,50),  function()
+        if sparkleObj then sparkleObj:Destroy(); sparkleObj=nil; return end
+        local s=Instance.new("Sparkles"); s.SparkleColor=Color3.fromRGB(255,220,50)
+        s.Parent=hrp; sparkleObj=s
+    end},
+    {"💧 Smoke",   Color3.fromRGB(150,150,180), function()
+        if waterObj then waterObj:Destroy(); waterObj=nil; return end
+        local s=Instance.new("Smoke"); s.Size=1; s.Opacity=0.4; s.RiseVelocity=2
+        s.Color=Color3.fromRGB(180,180,200); s.Parent=hrp; waterObj=s
+    end},
+    {"🎪 Bounce",  Color3.fromRGB(255,200,0),   function()
+        isBouncing=not isBouncing
+        if isBouncing then
+            bounceConn=RunService.Heartbeat:Connect(function()
+                if not isBouncing then bounceConn:Disconnect() return end
+                if hrp.Position.Y < 5 then
+                    local bv=Instance.new("BodyVelocity"); bv.Velocity=Vector3.new(0,80,0)
+                    bv.MaxForce=Vector3.new(0,1e5,0); bv.Parent=hrp
+                    game:GetService("Debris"):AddItem(bv,0.15)
+                end
+            end)
+        else
+            if bounceConn then bounceConn:Disconnect() bounceConn=nil end
+        end
+    end},
+    {"🎠 Carousel",Color3.fromRGB(255,100,150), function()
+        isCarousel=not isCarousel
+        if isCarousel then
+            local t=0; local radius=8; local speed=1.5
+            carouselConn=RunService.Heartbeat:Connect(function(dt)
+                if not isCarousel then carouselConn:Disconnect() return end
+                t+=dt*speed
+                local base=hrp.Position
+                hrp.CFrame=CFrame.new(base.X+math.cos(t)*0,base.Y,base.Z)*CFrame.Angles(0,t,0)
+            end)
+        else
+            if carouselConn then carouselConn:Disconnect() carouselConn=nil end
+        end
+    end},
+    {"🧲 Attract", Color3.fromRGB(220,40,220),  function()
+        -- Pull all nearby players toward you
+        for _,plr in ipairs(Players:GetPlayers()) do
+            if plr~=player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local tHrp=plr.Character.HumanoidRootPart
+                local dir=(hrp.Position-tHrp.Position)
+                local bv=Instance.new("BodyVelocity"); bv.Velocity=dir.Unit*60
+                bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Parent=tHrp
+                game:GetService("Debris"):AddItem(bv,0.3)
+            end
+        end
+    end},
+    {"🪂 Parachute",Color3.fromRGB(0,160,255),  function()
+        isParachute=not isParachute
+        if isParachute then
+            parachuteConn=RunService.Heartbeat:Connect(function()
+                if not isParachute then parachuteConn:Disconnect() return end
+                if hrp.AssemblyLinearVelocity.Y < -5 then
+                    local bv=Instance.new("BodyVelocity")
+                    bv.Velocity=Vector3.new(hrp.AssemblyLinearVelocity.X, -5, hrp.AssemblyLinearVelocity.Z)
+                    bv.MaxForce=Vector3.new(0,1e5,0); bv.Parent=hrp
+                    game:GetService("Debris"):AddItem(bv,0.05)
+                end
+            end)
+        else
+            if parachuteConn then parachuteConn:Disconnect() parachuteConn=nil end
+        end
+    end},
+    {"⚙️ Ragdoll",  Color3.fromRGB(180,80,0),   function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("Motor6D") then
+                local att0=Instance.new("Attachment"); att0.CFrame=p.C0; att0.Parent=p.Part0
+                local att1=Instance.new("Attachment"); att1.CFrame=p.C1; att1.Parent=p.Part1
+                local bs=Instance.new("BallSocketConstraint"); bs.Attachment0=att0; bs.Attachment1=att1
+                bs.LimitsEnabled=true; bs.UpperAngle=45; bs.Parent=p.Part0
+                p.Enabled=false
+            end
+        end
+        humanoid.PlatformStand=true
+        task.wait(3)
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("Motor6D") then p.Enabled=true end
+        end
+        humanoid.PlatformStand=false
+    end},
+    {"🌡️ Lava",    Color3.fromRGB(255,60,0),    function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                p.Color=Color3.fromRGB(220,60,0)
+                local f=Instance.new("Fire"); f.Size=2; f.Heat=3; f.Parent=p
+                game:GetService("Debris"):AddItem(f,4)
+            end
+        end
+    end},
+    {"🏔️ Ice",     Color3.fromRGB(180,230,255), function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                p.Color=Color3.fromRGB(180,230,255); p.Material=Enum.Material.Ice
+            end
+        end
+    end},
+    {"🔁 Mirror",  Color3.fromRGB(100,200,200), function()
+        hrp.CFrame=hrp.CFrame*CFrame.new(0,0,0)*CFrame.Angles(0,math.pi,0)
+    end},
+    {"💎 Crystal", Color3.fromRGB(100,200,255), function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                p.Material=Enum.Material.Neon; p.Color=Color3.fromRGB(100,200,255)
+                p.Transparency=0.3
+            end
+        end
+    end},
+    {"🌑 Shadow",  Color3.fromRGB(20,20,40),    function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                p.Material=Enum.Material.SmoothPlastic; p.Color=Color3.fromRGB(5,5,10)
+                p.Transparency=0.1
+            end
+        end
+    end},
+    {"🏋️ Heavy",   Color3.fromRGB(120,80,40),   function()
+        humanoid.WalkSpeed=4; humanoid.JumpPower=15
+        for _,v in ipairs({"BodyHeightScale","BodyWidthScale","BodyDepthScale"}) do
+            local s=humanoid:FindFirstChild(v); if s then s.Value=2 end
+        end
+    end},
+    {"🪁 Sling",   Color3.fromRGB(200,160,0),   function()
+        local cam=workspace.CurrentCamera
+        local bv=Instance.new("BodyVelocity")
+        bv.Velocity=cam.CFrame.LookVector*200+Vector3.new(0,60,0)
+        bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Parent=hrp
+        game:GetService("Debris"):AddItem(bv,0.2)
+    end},
+    {"🎭 FakeDead",Color3.fromRGB(80,0,0),      function()
+        humanoid.PlatformStand=not humanoid.PlatformStand
+    end},
+    {"👣 GhostWlk",Color3.fromRGB(200,200,255), function()
+        isGhostWalk=not isGhostWalk
+        if isGhostWalk then
+            ghostWalkConn=RunService.Stepped:Connect(function()
+                for _,p in ipairs(character:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        p.CanCollide=false
+                        p.Transparency=math.clamp(p.Transparency,0.5,0.9)
+                    end
+                end
+            end)
+        else
+            if ghostWalkConn then ghostWalkConn:Disconnect() ghostWalkConn=nil end
+            for _,p in ipairs(character:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide=true; p.Transparency=0 end
+            end
+        end
+    end},
+    {"🔆 Neon",    Color3.fromRGB(255,255,80),  function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                p.Material=Enum.Material.Neon
+            end
+        end
+    end},
+    {"🧱 Wood",    Color3.fromRGB(160,100,40),  function()
+        for _,p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                p.Material=Enum.Material.Wood; p.Color=Color3.fromRGB(160,100,40)
+            end
+        end
+    end},
+    {"⚡ Zap",     Color3.fromRGB(255,255,0),   function()
+        for i=1,5 do
+            task.wait(0.08)
+            for _,p in ipairs(character:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name~="HumanoidRootPart" then
+                    p.Color=i%2==0 and Color3.fromRGB(255,255,0) or Color3.fromRGB(200,200,255)
+                end
+            end
+        end
+    end},
+}
+
+-- 4 columns
+local COLS = 4
+local BTN_H = 44
+local BTN_ROWS = math.ceil(#commands / COLS)
+local BTN_PANEL_H = BTN_ROWS * (BTN_H + 4) + 8
+
+makeAccordion("🎮  Commands", Color3.fromRGB(0,200,120), BTN_PANEL_H, function(panel)
+    local sf = Instance.new("ScrollingFrame")
+    sf.Size = UDim2.new(1,0,1,0)
+    sf.BackgroundTransparency = 1
+    sf.ScrollBarThickness = 3
+    sf.ScrollBarImageColor3 = Color3.fromRGB(0,200,120)
+    sf.ScrollingDirection = Enum.ScrollingDirection.Y
+    sf.CanvasSize = UDim2.new(0,0,0,0)
+    sf.Parent = panel
+
+    local layout = Instance.new("UIGridLayout")
+    layout.CellSize = UDim2.new(0.235, -4, 0, BTN_H)
+    layout.CellPadding = UDim2.new(0, 4, 0, 4)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Parent = sf
+
+    local function updateCanvas()
+        sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+    end
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+
+    for _, cmdData in ipairs(commands) do
+        local lbl, col, func = cmdData[1], cmdData[2], cmdData[3]
+        local btn = Instance.new("TextButton")
+        btn.BackgroundColor3 = col
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Text = lbl
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.TextWrapped = true
+        btn.Parent = sf
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+        btn.MouseButton1Click:Connect(function()
+            local ok,err = pcall(func)
+            if not ok then warn("NEHOOTS: "..err) end
+        end)
+        btn.MouseButton1Down:Connect(function()
+            TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=col:Lerp(Color3.new(1,1,1),0.25)}):Play()
+        end)
+        btn.MouseButton1Up:Connect(function()
+            TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=col}):Play()
+        end)
+    end
+
+    task.defer(updateCanvas)
+end)
+
+-- ========== TOGGLE ==========
+local isOpen = false
+openBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen; frame.Visible = isOpen
+end)
+closeBtn.MouseButton1Click:Connect(function()
+    isOpen = false; frame.Visible = false
+end)
